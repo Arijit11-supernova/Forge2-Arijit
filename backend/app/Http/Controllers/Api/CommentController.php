@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Comment;
+use App\Models\Notification;
 use App\Models\Ticket;
 use Illuminate\Http\Request;
 
@@ -55,6 +56,22 @@ class CommentController extends Controller
                 'is_internal' => $comment->is_internal,
             ],
         ]);
+
+        // Notify requester and assignee (not the comment author)
+        $recipients = collect([$ticket->requester_id, $ticket->assignee_id])
+            ->filter()
+            ->unique()
+            ->reject(fn ($uid) => $uid === $request->user()->id);
+
+        foreach ($recipients as $uid) {
+            Notification::create([
+                'user_id' => $uid,
+                'organization_id' => $ticket->organization_id,
+                'type' => 'comment_added',
+                'message' => "New comment on \"{$ticket->subject}\"",
+                'ticket_id' => $ticket->id,
+            ]);
+        }
 
         return response()->json($comment->load('author:id,name,email'), 201);
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\Notification;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -104,7 +105,7 @@ class TicketController extends Controller
             ]);
         }
 
-        // Activity log for assignment change
+        // Activity log for assignment change + notify new assignee
         if (array_key_exists('assignee_id', $data)) {
             $newAssignee = $data['assignee_id'];
             if ($newAssignee !== $oldAssignee) {
@@ -117,6 +118,16 @@ class TicketController extends Controller
                         'to' => $newAssignee,
                     ],
                 ]);
+
+                if ($newAssignee && $newAssignee !== $request->user()->id) {
+                    Notification::create([
+                        'user_id' => $newAssignee,
+                        'organization_id' => $ticket->organization_id,
+                        'type' => 'ticket_assigned',
+                        'message' => "You have been assigned to \"{$ticket->subject}\"",
+                        'ticket_id' => $ticket->id,
+                    ]);
+                }
             }
         }
 

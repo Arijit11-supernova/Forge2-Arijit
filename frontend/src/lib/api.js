@@ -63,6 +63,10 @@ export const api = {
   // SLA
   sla: (ticketId) => request(`/tickets/${ticketId}/sla`),
 
+  // Notifications
+  notifications: () => request('/notifications'),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'POST' }),
+
   // Comments
   comments: (ticketId) =>
     request(`/tickets/${ticketId}/comments`),

@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import NotificationBell from './NotificationBell'
 
 export default function Layout({ children }) {
   const { user, logout, isRole } = useAuth()
@@ -19,8 +20,9 @@ export default function Layout({ children }) {
     <div className="min-h-screen flex bg-slate-50">
       {/* Sidebar */}
       <aside className="w-60 bg-white border-r border-slate-200 flex flex-col">
-        <div className="px-5 py-4 border-b border-slate-200">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
           <h1 className="text-xl font-bold text-brand-700">PulseDesk</h1>
+          <NotificationBell />
         </div>
         <nav className="flex-1 p-3 space-y-1">
           <NavLink to="/dashboard" className={linkClass}>
