@@ -24,6 +24,12 @@ export default function TicketDetail() {
   const [loading, setLoading] = useState(true)
   const [editingStatus, setEditingStatus] = useState(false)
   const [claiming, setClaiming] = useState(false)
+  const [canned, setCanned] = useState([])
+  const [showCsat, setShowCsat] = useState(false)
+  const [csatRating, setCsatRating] = useState(0)
+  const [csatComment, setCsatComment] = useState('')
+  const [showMerge, setShowMerge] = useState(false)
+  const [mergeTarget, setMergeTarget] = useState('')
 
   const fetchData = useCallback(async () => {
     try {
@@ -37,6 +43,13 @@ export default function TicketDetail() {
       setComments(c.data || [])
       setActivity(a || [])
       setSla(s)
+      // Load canned responses for agents/admins
+      if (isRole('admin', 'agent')) {
+        try {
+          const cr = await api.cannedResponses()
+          setCanned(cr.data || [])
+        } catch {}
+      }
     } catch (err) {
       console.error(err)
     }
@@ -84,6 +97,28 @@ export default function TicketDetail() {
       setActivity(a || [])
     } catch (err) {
       alert(err.message || 'Failed to add comment')
+    }
+  }
+
+  const handleCsatSubmit = async () => {
+    if (!csatRating) return
+    try {
+      await api.submitCsat(id, csatRating, csatComment)
+      await refreshTicket()
+      setShowCsat(false)
+    } catch (err) {
+      alert(err.message || 'Failed to submit CSAT')
+    }
+  }
+
+  const handleMerge = async () => {
+    if (!mergeTarget) return
+    if (!confirm(`Merge this ticket into #${mergeTarget}? This cannot be undone.`)) return
+    try {
+      await api.mergeTicket(id, mergeTarget)
+      navigate(`/tickets/${mergeTarget}`)
+    } catch (err) {
+      alert(err.message || 'Merge failed')
     }
   }
 
@@ -138,6 +173,12 @@ export default function TicketDetail() {
                 {claiming ? 'Claiming…' : 'Claim Ticket'}
               </button>
             )}
+            {canManage && (
+              <button onClick={() => setShowMerge(!showMerge)}
+                className="text-sm text-slate-600 hover:text-slate-800 border border-slate-300 hover:border-slate-400 px-3 py-1.5 rounded-lg transition">
+                Merge
+              </button>
+            )}
             {canDelete && (
               <button onClick={handleDelete}
                 className="text-sm text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition">
@@ -167,6 +208,56 @@ export default function TicketDetail() {
             )}
           </div>
         )}
+
+        {/* Merge UI */}
+        {showMerge && (
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4 flex items-center gap-3">
+            <input type="number" value={mergeTarget} onChange={(e) => setMergeTarget(e.target.value)}
+              placeholder="Target ticket #ID"
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-40" />
+            <button onClick={handleMerge}
+              className="bg-red-600 hover:bg-red-700 text-white text-sm px-3 py-1.5 rounded-lg">
+              Merge into #{mergeTarget || '…'}
+            </button>
+            <button onClick={() => setShowMerge(false)} className="text-sm text-slate-500">Cancel</button>
+          </div>
+        )}
+
+        {/* CSAT widget */}
+        {ticket.csat_rating ? (
+          <div className="bg-brand-50 border border-brand-200 rounded-lg p-3 mb-4 text-sm flex items-center gap-2">
+            <span className="font-semibold text-brand-700">CSAT:</span>
+            <span className="text-brand-600">{'⭐'.repeat(ticket.csat_rating)}</span>
+            <span className="text-slate-400">({ticket.csat_rating}/5)</span>
+            {ticket.csat_comment && <span className="text-slate-500 ml-2">— "{ticket.csat_comment}"</span>}
+          </div>
+        ) : ticket.requester_id === user?.id && (ticket.status === 'resolved' || ticket.status === 'closed') ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+            {showCsat ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-amber-800">Rate your experience</p>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setCsatRating(n)}
+                      className={`text-2xl ${csatRating >= n ? 'text-amber-400' : 'text-slate-300'}`}>⭐</button>
+                  ))}
+                </div>
+                <input type="text" value={csatComment} onChange={(e) => setCsatComment(e.target.value)}
+                  placeholder="Optional comment…"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm" />
+                <button onClick={handleCsatSubmit} disabled={!csatRating}
+                  className="bg-amber-500 hover:bg-amber-600 text-white text-sm px-3 py-1.5 rounded-lg disabled:opacity-50">
+                  Submit Rating
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowCsat(true)}
+                className="text-sm text-amber-700 hover:underline">
+                Rate your support experience →
+              </button>
+            )}
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-4 text-sm mb-4 pb-4 border-b border-slate-100">
           <div>
@@ -220,6 +311,17 @@ export default function TicketDetail() {
 
         {/* Add comment */}
         <form onSubmit={handleAddComment} className="mb-6 space-y-3">
+          {canManage && canned.length > 0 && (
+            <select
+              onChange={(e) => { if (e.target.value) { setCommentBody(canned.find(c => c.id == e.target.value)?.body || ''); e.target.value = ''; } }}
+              className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-500 bg-slate-50"
+            >
+              <option value="">Insert canned response…</option>
+              {canned.map(cr => (
+                <option key={cr.id} value={cr.id}>{cr.title}</option>
+              ))}
+            </select>
+          )}
           <textarea
             value={commentBody}
             onChange={(e) => setCommentBody(e.target.value)}

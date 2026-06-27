@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import TicketList from './pages/TicketList'
 import TicketDetail from './pages/TicketDetail'
 import NewTicket from './pages/NewTicket'
+import Portal from './pages/Portal'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/tickets" element={<ProtectedRoute><TicketList /></ProtectedRoute>} />
           <Route path="/tickets/new" element={<ProtectedRoute><NewTicket /></ProtectedRoute>} />
           <Route path="/tickets/:id" element={<ProtectedRoute><TicketDetail /></ProtectedRoute>} />
+          <Route path="/portal" element={<ProtectedRoute><Portal /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

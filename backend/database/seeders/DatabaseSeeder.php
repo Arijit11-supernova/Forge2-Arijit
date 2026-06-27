@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\CannedResponse;
 use App\Models\Comment;
 use App\Models\Organization;
 use App\Models\SlaPolicy;
@@ -116,6 +117,21 @@ class DatabaseSeeder extends Seeder
                 'author_id' => $acmeAdmin->id,
                 'body' => 'Internal note: assigned and being tracked.',
                 'is_internal' => true,
+            ]);
+        }
+
+        // Canned responses for Acme
+        $cannedDefaults = [
+            ['Greeting', "Hi there!\n\nThanks for reaching out. We're looking into this and will get back to you shortly."],
+            ['Resolution', "Hi!\n\nThis issue has been resolved. Please let us know if you're still experiencing problems and we'll be happy to help further."],
+            ['Escalation', "Hi,\n\nI'm escalating this to our senior team for further investigation. You'll receive an update shortly."],
+        ];
+
+        foreach ($cannedDefaults as [$title, $body]) {
+            CannedResponse::create([
+                'organization_id' => $acme->id,
+                'title' => $title,
+                'body' => $body,
             ]);
         }
 

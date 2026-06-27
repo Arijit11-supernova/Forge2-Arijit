@@ -21,9 +21,11 @@ class TicketController extends Controller
             ->when($request->filled('assignee_id'), fn ($q) => $q->where('assignee_id', $request->assignee_id))
             ->when($request->filled('requester_id'), fn ($q) => $q->where('requester_id', $request->requester_id))
             ->when($request->filled('search'), function ($q) use ($request) {
-                $q->where(function ($q) use ($request) {
-                    $q->where('subject', 'like', "%{$request->search}%")
-                        ->orWhere('description', 'like', "%{$request->search}%");
+                $search = $request->search;
+                $q->where(function ($q) use ($search) {
+                    $q->where('subject', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhereHas('comments', fn ($cq) => $cq->where('body', 'like', "%{$search}%"));
                 });
             })
             ->with(['requester:id,name,email', 'assignee:id,name,email'])
@@ -31,6 +33,34 @@ class TicketController extends Controller
             ->paginate($request->integer('per_page', 15));
 
         return response()->json($tickets);
+    }
+
+    public function bulkUpdate(Request $request)
+    {
+        $this->authorize('create', Ticket::class);
+
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer'],
+            'action' => ['required', 'in:open,pending,resolved,closed'],
+        ]);
+
+        $tickets = Ticket::whereIn('id', $data['ids'])->get();
+
+        foreach ($tickets as $ticket) {
+            $oldStatus = $ticket->status;
+            $ticket->update(['status' => $data['action']]);
+            if ($data['action'] !== $oldStatus) {
+                ActivityLog::create([
+                    'ticket_id' => $ticket->id,
+                    'actor_id' => $request->user()->id,
+                    'action' => 'status_changed',
+                    'meta' => ['from' => $oldStatus, 'to' => $data['action'], 'bulk' => true],
+                ]);
+            }
+        }
+
+        return response()->json(['message' => count($tickets).' ticket(s) updated.']);
     }
 
     public function export(Request $request)
@@ -180,5 +210,68 @@ class TicketController extends Controller
         $ticket->delete();
 
         return response()->json(['message' => 'Ticket deleted.'], 200);
+    }
+
+    public function submitCsat(Request $request, Ticket $ticket)
+    {
+        $this->authorize('view', $ticket);
+
+        if ($request->user()->id !== $ticket->requester_id) {
+            return response()->json(['message' => 'Only the requester can submit CSAT.'], 403);
+        }
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['sometimes', 'string', 'max:1000'],
+        ]);
+
+        $ticket->update([
+            'csat_rating' => $data['rating'],
+            'csat_comment' => $data['comment'] ?? null,
+            'csat_at' => now(),
+        ]);
+
+        ActivityLog::create([
+            'ticket_id' => $ticket->id,
+            'actor_id' => $request->user()->id,
+            'action' => 'csat_submitted',
+            'meta' => ['rating' => $data['rating']],
+        ]);
+
+        return response()->json(['message' => 'CSAT submitted.', 'ticket' => $ticket->fresh()]);
+    }
+
+    public function merge(Request $request, Ticket $source)
+    {
+        $this->authorize('update', $source);
+
+        $data = $request->validate([
+            'target_id' => ['required', 'integer', 'exists:tickets,id'],
+        ]);
+
+        if ($data['target_id'] == $source->id) {
+            return response()->json(['message' => 'Cannot merge a ticket into itself.'], 422);
+        }
+
+        $target = Ticket::find($data['target_id']);
+
+        if ($target->organization_id !== $source->organization_id) {
+            return response()->json(['message' => 'Cross-org merge not allowed.'], 422);
+        }
+
+        // Move comments from source to target
+        $source->comments()->update(['ticket_id' => $target->id]);
+
+        // Log the merge
+        ActivityLog::create([
+            'ticket_id' => $target->id,
+            'actor_id' => $request->user()->id,
+            'action' => 'ticket_merged',
+            'meta' => ['source_id' => $source->id, 'source_subject' => $source->subject],
+        ]);
+
+        $source->delete();
+
+        return response()->json(['message' => 'Ticket merged.', 'target' => $target->fresh()]);
     }
 }

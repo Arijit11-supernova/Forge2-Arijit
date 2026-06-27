@@ -20,6 +20,9 @@ class Ticket extends Model
         'requester_id',
         'assignee_id',
         'organization_id',
+        'csat_rating',
+        'csat_comment',
+        'csat_at',
     ];
 
     protected function casts(): array
@@ -27,6 +30,7 @@ class Ticket extends Model
         return [
             'status' => 'string',
             'priority' => 'string',
+            'csat_at' => 'datetime',
         ];
     }
 

@@ -86,6 +86,28 @@ export const api = {
   notifications: () => request('/notifications'),
   markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'POST' }),
 
+  // CSAT
+  submitCsat: (ticketId, rating, comment = '') =>
+    request(`/tickets/${ticketId}/csat`, { method: 'POST', body: JSON.stringify({ rating, comment }) }),
+
+  // Merge
+  mergeTicket: (sourceId, targetId) =>
+    request(`/tickets/${sourceId}/merge`, { method: 'POST', body: JSON.stringify({ target_id: targetId }) }),
+
+  // Canned Responses
+  cannedResponses: () => request('/canned-responses'),
+  createCannedResponse: (title, body) =>
+    request('/canned-responses', { method: 'POST', body: JSON.stringify({ title, body }) }),
+  deleteCannedResponse: (id) =>
+    request(`/canned-responses/${id}`, { method: 'DELETE' }),
+
+  // Public ticket
+  submitPublicTicket: (data) =>
+    request('/public/tickets', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Portal (customer's own tickets)
+  portalTickets: () => request('/portal/tickets'),
+
   // Comments
   comments: (ticketId) =>
     request(`/tickets/${ticketId}/comments`),
