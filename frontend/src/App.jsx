@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './lib/auth'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Dashboard from './pages/Dashboard'
 import TicketList from './pages/TicketList'
 import TicketDetail from './pages/TicketDetail'
 import NewTicket from './pages/NewTicket'
@@ -17,7 +18,7 @@ function ProtectedRoute({ children }) {
 function PublicRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-400">Loading…</div>
-  if (user) return <Navigate to="/tickets" replace />
+  if (user) return <Navigate to="/dashboard" replace />
   return children
 }
 
@@ -28,11 +29,12 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/tickets" element={<ProtectedRoute><TicketList /></ProtectedRoute>} />
           <Route path="/tickets/new" element={<ProtectedRoute><NewTicket /></ProtectedRoute>} />
           <Route path="/tickets/:id" element={<ProtectedRoute><TicketDetail /></ProtectedRoute>} />
-          <Route path="/" element={<Navigate to="/tickets" replace />} />
-          <Route path="*" element={<Navigate to="/tickets" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

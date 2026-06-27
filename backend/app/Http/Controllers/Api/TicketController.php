@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -88,7 +89,36 @@ class TicketController extends Controller
             }
         }
 
+        $oldStatus = $ticket->status;
+        $oldAssignee = $ticket->assignee_id;
+
         $ticket->update($data);
+
+        // Activity log for status change
+        if (isset($data['status']) && $data['status'] !== $oldStatus) {
+            ActivityLog::create([
+                'ticket_id' => $ticket->id,
+                'actor_id' => $request->user()->id,
+                'action' => 'status_changed',
+                'meta' => ['from' => $oldStatus, 'to' => $data['status']],
+            ]);
+        }
+
+        // Activity log for assignment change
+        if (array_key_exists('assignee_id', $data)) {
+            $newAssignee = $data['assignee_id'];
+            if ($newAssignee !== $oldAssignee) {
+                ActivityLog::create([
+                    'ticket_id' => $ticket->id,
+                    'actor_id' => $request->user()->id,
+                    'action' => 'assignee_changed',
+                    'meta' => [
+                        'from' => $oldAssignee,
+                        'to' => $newAssignee,
+                    ],
+                ]);
+            }
+        }
 
         return response()->json($ticket->load(['requester:id,name,email', 'assignee:id,name,email']));
     }

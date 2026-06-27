@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Comment;
 use App\Models\Ticket;
 use Illuminate\Http\Request;
@@ -43,6 +44,16 @@ class CommentController extends Controller
             'author_id' => $request->user()->id,
             'body' => $data['body'],
             'is_internal' => $data['is_internal'] ?? false,
+        ]);
+
+        ActivityLog::create([
+            'ticket_id' => $ticket->id,
+            'actor_id' => $request->user()->id,
+            'action' => 'comment_added',
+            'meta' => [
+                'comment_id' => $comment->id,
+                'is_internal' => $comment->is_internal,
+            ],
         ]);
 
         return response()->json($comment->load('author:id,name,email'), 201);

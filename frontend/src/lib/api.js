@@ -54,6 +54,15 @@ export const api = {
   deleteTicket: (id) =>
     request(`/tickets/${id}`, { method: 'DELETE' }),
 
+  // Dashboard
+  dashboard: () => request('/dashboard'),
+
+  // Activity
+  activity: (ticketId) => request(`/tickets/${ticketId}/activity`),
+
+  // SLA
+  sla: (ticketId) => request(`/tickets/${ticketId}/sla`),
+
   // Comments
   comments: (ticketId) =>
     request(`/tickets/${ticketId}/comments`),

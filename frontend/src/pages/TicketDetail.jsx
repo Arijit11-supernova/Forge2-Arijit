@@ -4,23 +4,39 @@ import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { StatusBadge, PriorityBadge } from '../components/Badges'
 
+function formatAction(action, meta) {
+  if (action === 'status_changed') return `Status changed from ${meta.from || '—'} to ${meta.to}`
+  if (action === 'assignee_changed') return `Assignee ${meta.to ? 'set' : 'removed'}`
+  if (action === 'comment_added') return meta.is_internal ? 'Internal note added' : 'Comment added'
+  return action.replace(/_/g, ' ')
+}
+
 export default function TicketDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user, isRole } = useAuth()
   const [ticket, setTicket] = useState(null)
   const [comments, setComments] = useState([])
+  const [activity, setActivity] = useState([])
+  const [sla, setSla] = useState(null)
   const [commentBody, setCommentBody] = useState('')
   const [isInternal, setIsInternal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [editingStatus, setEditingStatus] = useState(false)
+  const [claiming, setClaiming] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
-      const t = await api.ticket(id)
+      const [t, c, a, s] = await Promise.all([
+        api.ticket(id),
+        api.comments(id),
+        api.activity(id),
+        api.sla(id),
+      ])
       setTicket(t)
-      const c = await api.comments(id)
       setComments(c.data || [])
+      setActivity(a || [])
+      setSla(s)
     } catch (err) {
       console.error(err)
     }
@@ -29,14 +45,31 @@ export default function TicketDetail() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  const refreshTicket = async () => {
+    const [t, a] = await Promise.all([api.ticket(id), api.activity(id)])
+    setTicket(t)
+    setActivity(a || [])
+  }
+
   const handleUpdateStatus = async (newStatus) => {
     try {
-      const updated = await api.updateTicket(id, { status: newStatus })
-      setTicket(updated)
+      await api.updateTicket(id, { status: newStatus })
+      await refreshTicket()
       setEditingStatus(false)
     } catch (err) {
       alert(err.message || 'Failed to update')
     }
+  }
+
+  const handleClaim = async () => {
+    setClaiming(true)
+    try {
+      await api.updateTicket(id, { assignee_id: user.id })
+      await refreshTicket()
+    } catch (err) {
+      alert(err.message || 'Failed to claim')
+    }
+    setClaiming(false)
   }
 
   const handleAddComment = async (e) => {
@@ -47,6 +80,8 @@ export default function TicketDetail() {
       setComments([c, ...comments])
       setCommentBody('')
       setIsInternal(false)
+      const a = await api.activity(id)
+      setActivity(a || [])
     } catch (err) {
       alert(err.message || 'Failed to add comment')
     }
@@ -77,6 +112,7 @@ export default function TicketDetail() {
 
   const canManage = isRole('admin', 'agent')
   const canDelete = isRole('admin')
+  const canClaim = canManage && !ticket.assignee_id
 
   return (
     <div className="p-6 max-w-4xl">
@@ -95,13 +131,42 @@ export default function TicketDetail() {
               <span className="text-sm text-slate-400">#{ticket.id}</span>
             </div>
           </div>
-          {canDelete && (
-            <button onClick={handleDelete}
-              className="text-sm text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition">
-              Delete
-            </button>
-          )}
+          <div className="flex gap-2">
+            {canClaim && (
+              <button onClick={handleClaim} disabled={claiming}
+                className="text-sm bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50">
+                {claiming ? 'Claiming…' : 'Claim Ticket'}
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={handleDelete}
+                className="text-sm text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 px-3 py-1.5 rounded-lg transition">
+                Delete
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* SLA indicator */}
+        {sla?.has_policy && (
+          <div className={`rounded-lg p-3 mb-4 text-sm flex items-center gap-4 ${
+            sla.response_breached
+              ? 'bg-red-50 border border-red-200 text-red-700'
+              : 'bg-green-50 border border-green-200 text-green-700'
+          }`}>
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {sla.response_breached ? (
+              <span><strong>SLA BREACHED</strong> — Response was due {new Date(sla.response_due_at).toLocaleString()}</span>
+            ) : (
+              <span>Response due in <strong>{Math.floor(sla.response_remaining_minutes / 60)}h {sla.response_remaining_minutes % 60}m</strong> — {new Date(sla.response_due_at).toLocaleString()}</span>
+            )}
+            {sla.resolution_breached && (
+              <span className="ml-4"><strong>Resolution also breached</strong></span>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4 text-sm mb-4 pb-4 border-b border-slate-100">
           <div>
@@ -148,7 +213,7 @@ export default function TicketDetail() {
       </div>
 
       {/* Comments */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
         <h3 className="text-sm font-semibold text-slate-500 uppercase mb-4">
           Comments ({comments.length})
         </h3>
@@ -206,6 +271,27 @@ export default function TicketDetail() {
             <p className="text-sm text-slate-400 text-center py-4">No comments yet.</p>
           )}
         </div>
+      </div>
+
+      {/* Activity log */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h3 className="text-sm font-semibold text-slate-500 uppercase mb-4">Activity Log</h3>
+        {activity.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-4">No activity yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {activity.map((log) => (
+              <div key={log.id} className="flex items-start gap-3 text-sm">
+                <div className="w-2 h-2 rounded-full bg-brand-400 mt-1.5 shrink-0" />
+                <div className="flex-1">
+                  <span className="text-slate-700">{formatAction(log.action, log.meta)}</span>
+                  {log.actor && <span className="text-slate-400"> · {log.actor.name}</span>}
+                  <span className="text-slate-400"> · {new Date(log.created_at).toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
