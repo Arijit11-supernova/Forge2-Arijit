@@ -1,28 +1,60 @@
-# Architecture -- PulseDesk
+\# Architecture — PulseDesk
 
-## Multi-tenancy approach
-Describe how every record is scoped to an organization_id, and how the tenant is derived
-from the AUTHENTICATED user/session (NOT from a client-supplied id). Note your global scope /
-middleware / policy approach.
 
-## Data model (fill in)
-- Organization (tenant)
-- User (belongs_to Organization; role: admin | agent | customer)
-- Ticket (subject, description, status, priority, requester_id, assignee_id, org_id, timestamps)
-- Comment (ticket_id, author_id, body, is_internal)
-- SlaPolicy (org_id, priority, response_minutes, resolution_minutes)   # Should-tier
-- ActivityLog (ticket_id, actor_id, action, meta, created_at)          # Should-tier
 
-## API routes (fill in -- routes/api.php)
-| Method | Path | Auth | Notes |
-| --- | --- | --- | --- |
-| POST | /api/register | - | |
-| POST | /api/login | - | returns Sanctum token |
-| GET  | /api/tickets | agent/admin | tenant-scoped, filterable |
-| POST | /api/tickets | any | |
-| GET  | /api/tickets/{id} | tenant | |
-| PUT  | /api/tickets/{id} | agent/admin | |
-| POST | /api/tickets/{id}/comments | tenant | public reply / internal note |
+\## Multi-tenancy Approach
 
-## Key decisions (log them as you go)
-- ...
+Every record belongs to an `organization\_id`. The `BelongsToOrg` global scope is auto-applied to `Ticket` and `Comment` models, filtering all queries by `Auth::user()->organization\_id`. Tenant is derived ONLY from the authenticated user's session — never from client-supplied data.
+
+
+
+\## Data Model
+
+\- `organizations` — id, name, slug, timestamps
+
+\- `users` — id, organization\_id, name, email, password, role (admin/agent/customer), timestamps
+
+\- `tickets` — id, organization\_id, subject, description, status, priority, requester\_id, assignee\_id, timestamps
+
+\- `comments` — id, ticket\_id, organization\_id, author\_id, body, is\_internal, timestamps
+
+\- `sla\_policies` — id, organization\_id, name, priority, response\_hours, resolution\_hours
+
+\- `activity\_logs` — id, organization\_id, ticket\_id, user\_id, action, timestamps
+
+
+
+\## API Routes
+
+\- POST /api/register
+
+\- POST /api/login
+
+\- POST /api/logout
+
+\- GET /api/me
+
+\- GET/POST /api/tickets
+
+\- GET/PUT/DELETE /api/tickets/{id}
+
+\- GET/POST /api/tickets/{ticket}/comments
+
+\- PUT/DELETE /api/comments/{id}
+
+
+
+\## Key Decisions
+
+\- Laravel Sanctum token-based auth (Bearer tokens) for SPA
+
+\- Global scope on Ticket/Comment for automatic tenant isolation
+
+\- Role-based authorization via Laravel Policies (TicketPolicy, CommentPolicy)
+
+\- Internal comments hidden from customers via policy
+
+\- React Router v7 for SPA routing with protected routes
+
+\- Centralized API client with auto Bearer token injection
+
