@@ -1,12 +1,28 @@
 {
-  "_comment": "OpenClaw (coder) -- EastRouter config. Secrets REDACTED on purpose.",
-  "model": { "base_url": "https://api.eastrouter.com/v1", "api_key": "${EASTROUTER_API_KEY}", "model": "z-ai/glm-5.1" },
+  "_comment": "OpenClaw (coder) — real config, secrets redacted. Model: z-ai/glm-5.1 via EastRouter.",
+  "model": {
+    "base_url": "https://api.eastrouter.com/v1",
+    "api_key": "${EASTROUTER_API_KEY}",
+    "model": "z-ai/glm-5.1"
+  },
+  "workspace": {
+    "working_dir": "D:\\Forge2\\forge2-arijit",
+    "command_execution": true,
+    "tools": ["read_file", "write_file", "execute_code", "terminal", "search_files"]
+  },
   "channels": {
     "slack": {
       "enabled": true,
-      "appToken": { "source": "env", "id": "SLACK_APP_TOKEN" },
-      "botToken": { "source": "env", "id": "SLACK_BOT_TOKEN" },
-      "channels": ["#agent-coder", "#agent-log", "#ci-cd"]
+      "appToken": "${SLACK_APP_TOKEN}",
+      "botToken": "${SLACK_BOT_TOKEN}",
+      "channels": ["#agent-coder", "#agent-log", "#ci-cd"],
+      "groupPolicy": "allowlist"
     }
+  },
+  "plugins": ["slack", "duckduckgo"],
+  "tools_profile": "coding",
+  "gateway": {
+    "mode": "local",
+    "port": 18789
   }
 }
