@@ -12,6 +12,7 @@ class Comment extends Model
     use BelongsToOrg, HasFactory;
 
     protected $fillable = [
+        'organization_id',
         'ticket_id',
         'author_id',
         'body',

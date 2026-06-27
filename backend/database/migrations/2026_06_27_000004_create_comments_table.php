@@ -10,12 +10,14 @@ return new class extends Migration
     {
         Schema::create('comments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->foreignId('ticket_id')->constrained()->cascadeOnDelete();
             $table->foreignId('author_id')->nullable()->constrained('users')->nullOnDelete();
             $table->text('body');
             $table->boolean('is_internal')->default(false);
             $table->timestamps();
 
+            $table->index(['organization_id', 'ticket_id']);
             $table->index(['ticket_id', 'is_internal']);
         });
     }

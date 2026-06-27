@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Comment;
 use App\Models\Organization;
 use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AuthAndTenantIsolationTest extends TestCase
@@ -28,11 +30,11 @@ class AuthAndTenantIsolationTest extends TestCase
 
     public function test_user_can_login_and_receive_token(): void
     {
-        $org = Organization::create(['name' => 'Test Org']);
-        $user = User::create([
+        $org = Organization::create(['name' => 'Test Org', 'slug' => 'test-org']);
+        User::create([
             'name' => 'Test User',
             'email' => 'login@test.com',
-            'password' => 'Password123!',
+            'password' => Hash::make('Password123!'),
             'organization_id' => $org->id,
             'role' => 'admin',
         ]);
@@ -58,11 +60,11 @@ class AuthAndTenantIsolationTest extends TestCase
 
     public function test_authenticated_user_can_access_me(): void
     {
-        $org = Organization::create(['name' => 'Test Org']);
+        $org = Organization::create(['name' => 'Test Org', 'slug' => 'test-org-2']);
         $user = User::create([
             'name' => 'Me User',
             'email' => 'me@test.com',
-            'password' => 'Password123!',
+            'password' => Hash::make('Password123!'),
             'organization_id' => $org->id,
             'role' => 'admin',
         ]);
@@ -78,13 +80,13 @@ class AuthAndTenantIsolationTest extends TestCase
 
     public function test_ticket_tenant_isolation(): void
     {
-        $orgA = Organization::create(['name' => 'Org A']);
-        $orgB = Organization::create(['name' => 'Org B']);
+        $orgA = Organization::create(['name' => 'Org A', 'slug' => 'org-a']);
+        $orgB = Organization::create(['name' => 'Org B', 'slug' => 'org-b']);
 
         $userA = User::create([
             'name' => 'User A',
             'email' => 'a@org-a.test',
-            'password' => 'Password123!',
+            'password' => Hash::make('Password123!'),
             'organization_id' => $orgA->id,
             'role' => 'admin',
         ]);
@@ -92,12 +94,11 @@ class AuthAndTenantIsolationTest extends TestCase
         $userB = User::create([
             'name' => 'User B',
             'email' => 'b@org-b.test',
-            'password' => 'Password123!',
+            'password' => Hash::make('Password123!'),
             'organization_id' => $orgB->id,
             'role' => 'admin',
         ]);
 
-        // Create ticket in Org B
         Ticket::create([
             'organization_id' => $orgB->id,
             'subject' => 'Org B Secret',
@@ -107,44 +108,79 @@ class AuthAndTenantIsolationTest extends TestCase
             'requester_id' => $userB->id,
         ]);
 
-        // User A should NOT see Org B's tickets via global scope
-        $tokenA = $userA->createToken('test')->plainTextToken;
-
-        $response = $this->withHeader('Authorization', 'Bearer '.$tokenA)
-            ->getJson('/api/tickets');
-
-        // Endpoint doesn't exist yet (Issue #2) but the scope test is about the model
-        // Test model-level isolation directly
         $this->actingAs($userA);
-        $ticketsVisibleToA = Ticket::count();
-        $this->assertEquals(0, $ticketsVisibleToA, 'Org A user should see 0 tickets from Org B');
+        $this->assertEquals(0, Ticket::count(), 'Org A user should see 0 tickets from Org B');
 
         $this->actingAs($userB);
-        $ticketsVisibleToB = Ticket::count();
-        $this->assertEquals(1, $ticketsVisibleToB, 'Org B user should see their own ticket');
+        $this->assertEquals(1, Ticket::count(), 'Org B user should see their own ticket');
+    }
+
+    public function test_comment_tenant_isolation(): void
+    {
+        $orgA = Organization::create(['name' => 'Org A', 'slug' => 'org-a-2']);
+        $orgB = Organization::create(['name' => 'Org B', 'slug' => 'org-b-2']);
+
+        $userA = User::create([
+            'name' => 'User A',
+            'email' => 'ca@org-a.test',
+            'password' => Hash::make('Password123!'),
+            'organization_id' => $orgA->id,
+            'role' => 'admin',
+        ]);
+
+        $userB = User::create([
+            'name' => 'User B',
+            'email' => 'cb@org-b.test',
+            'password' => Hash::make('Password123!'),
+            'organization_id' => $orgB->id,
+            'role' => 'admin',
+        ]);
+
+        $ticketB = Ticket::create([
+            'organization_id' => $orgB->id,
+            'subject' => 'Org B Ticket',
+            'description' => 'For comment isolation test',
+            'status' => 'open',
+            'priority' => 'medium',
+            'requester_id' => $userB->id,
+        ]);
+
+        Comment::create([
+            'organization_id' => $orgB->id,
+            'ticket_id' => $ticketB->id,
+            'author_id' => $userB->id,
+            'body' => 'Org B internal comment',
+            'is_internal' => true,
+        ]);
+
+        $this->actingAs($userA);
+        $this->assertEquals(0, Comment::count(), 'Org A user should see 0 comments from Org B');
+
+        $this->actingAs($userB);
+        $this->assertEquals(1, Comment::count(), 'Org B user should see their own comment');
     }
 
     public function test_user_role_helpers(): void
     {
-        $org = Organization::create(['name' => 'Role Org']);
+        $org = Organization::create(['name' => 'Role Org', 'slug' => 'role-org']);
         $admin = User::create([
             'name' => 'Admin',
             'email' => 'role-admin@test.com',
-            'password' => 'Password123!',
+            'password' => Hash::make('Password123!'),
             'organization_id' => $org->id,
             'role' => 'admin',
         ]);
         $agent = User::create([
             'name' => 'Agent',
             'email' => 'role-agent@test.com',
-            'password' => 'Password123!',
+            'password' => Hash::make('Password123!'),
             'organization_id' => $org->id,
             'role' => 'agent',
         ]);
         $customer = User::create([
             'name' => 'Customer',
             'email' => 'role-customer@test.com',
-            'password' => 'Password123!',
+            'password' => Hash::make('Password123!'),
             'organization_id' => $org->id,
             'role' => 'customer',
         ]);

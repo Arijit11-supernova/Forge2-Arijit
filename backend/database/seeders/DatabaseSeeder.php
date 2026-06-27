@@ -71,6 +71,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         Comment::create([
+            'organization_id' => $acme->id,
             'ticket_id' => $acmeTicket->id,
             'author_id' => $acmeAgent->id,
             'body' => 'Looking into this now. Can you share the exact URL?',
@@ -78,6 +79,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         Comment::create([
+            'organization_id' => $acme->id,
             'ticket_id' => $acmeTicket->id,
             'author_id' => $acmeAdmin->id,
             'body' => 'Escalating — possible database connection issue.',
@@ -117,6 +119,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         Comment::create([
+            'organization_id' => $globex->id,
             'ticket_id' => $globexTicket->id,
             'author_id' => $globexAdmin->id,
             'body' => 'Internal Globex discussion — not for Acme eyes.',
