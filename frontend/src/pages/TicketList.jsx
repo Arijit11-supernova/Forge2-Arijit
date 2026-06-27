@@ -12,9 +12,11 @@ export default function TicketList() {
   const [filters, setFilters] = useState({
     status: '', priority: '', search: '', page: 1,
   })
+  const [selected, setSelected] = useState(new Set())
+  const [bulkAction, setBulkAction] = useState('')
+  const [showBulkBar, setShowBulkBar] = useState(false)
 
   const fetchTickets = useCallback(async () => {
-    setLoading(true)
     try {
       const params = {}
       if (filters.status) params.status = filters.status
@@ -30,7 +32,52 @@ export default function TicketList() {
     setLoading(false)
   }, [filters])
 
-  useEffect(() => { fetchTickets() }, [fetchTickets])
+  // Initial load
+  useEffect(() => {
+    setLoading(true)
+    fetchTickets()
+  }, [fetchTickets])
+
+  // Real-time polling every 30s (skip when search input focused or loading)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchTickets()
+      }
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [fetchTickets])
+
+  // Bulk selection
+  const toggleSelect = (id) => {
+    const next = new Set(selected)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    setSelected(next)
+    setShowBulkBar(next.size > 0)
+  }
+
+  const toggleSelectAll = () => {
+    if (selected.size === tickets.length) {
+      setSelected(new Set())
+      setShowBulkBar(false)
+    } else {
+      setSelected(new Set(tickets.map(t => t.id)))
+      setShowBulkBar(true)
+    }
+  }
+
+  const applyBulkAction = async () => {
+    if (!bulkAction || selected.size === 0) return
+    try {
+      await api.bulkUpdateTickets([...selected], bulkAction)
+      setSelected(new Set())
+      setShowBulkBar(false)
+      setBulkAction('')
+      fetchTickets()
+    } catch (err) {
+      alert(err.message || 'Bulk action failed')
+    }
+  }
 
   const updateFilter = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }))
@@ -93,6 +140,29 @@ export default function TicketList() {
         </select>
       </div>
 
+        {/* Bulk action bar */}
+        {showBulkBar && (
+          <div className="bg-brand-50 border-b border-brand-200 px-4 py-2 flex items-center gap-3">
+            <span className="text-sm text-brand-700 font-medium">{selected.size} selected</span>
+            <select value={bulkAction} onChange={(e) => setBulkAction(e.target.value)}
+              className="rounded-lg border border-slate-300 px-2 py-1 text-sm">
+              <option value="">Choose action…</option>
+              <option value="open">Set Open</option>
+              <option value="pending">Set Pending</option>
+              <option value="resolved">Set Resolved</option>
+              <option value="closed">Set Closed</option>
+            </select>
+            <button onClick={applyBulkAction} disabled={!bulkAction}
+              className="bg-brand-600 hover:bg-brand-700 text-white text-sm px-3 py-1 rounded-lg disabled:opacity-50">
+              Apply
+            </button>
+            <button onClick={() => { setSelected(new Set()); setShowBulkBar(false) }}
+              className="text-sm text-slate-500 hover:text-slate-700 ml-auto">
+              Clear
+            </button>
+          </div>
+        )}
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {loading ? (
@@ -103,6 +173,11 @@ export default function TicketList() {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-4 py-3 w-10">
+                  <input type="checkbox" checked={selected.size === tickets.length && tickets.length > 0}
+                    onChange={toggleSelectAll}
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Subject</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Priority</th>
@@ -113,7 +188,12 @@ export default function TicketList() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {tickets.map((t) => (
-                <tr key={t.id} className="hover:bg-slate-50 transition">
+                <tr key={t.id} className={`hover:bg-slate-50 transition ${selected.has(t.id) ? 'bg-brand-50' : ''}`}>
+                  <td className="px-4 py-3">
+                    <input type="checkbox" checked={selected.has(t.id)}
+                      onChange={() => toggleSelect(t.id)}
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+                  </td>
                   <td className="px-4 py-3">
                     <Link to={`/tickets/${t.id}`} className="text-sm font-medium text-brand-700 hover:underline">
                       {t.subject}

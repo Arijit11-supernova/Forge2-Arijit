@@ -54,6 +54,9 @@ export const api = {
   deleteTicket: (id) =>
     request(`/tickets/${id}`, { method: 'DELETE' }),
 
+  bulkUpdateTickets: (ids, action) =>
+    request('/tickets/bulk', { method: 'PATCH', body: JSON.stringify({ ids, action }) }),
+
   exportTicketsCsv: async (params = {}) => {
     const qs = new URLSearchParams(params).toString()
     const token = getToken()
