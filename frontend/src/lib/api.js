@@ -54,6 +54,22 @@ export const api = {
   deleteTicket: (id) =>
     request(`/tickets/${id}`, { method: 'DELETE' }),
 
+  exportTicketsCsv: async (params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    const token = getToken()
+    const url = `${BASE}/api/tickets/export${qs ? '?' + qs : ''}`
+    const res = await fetch(url, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    })
+    const blob = await res.blob()
+    const downloadUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = downloadUrl
+    a.download = 'tickets.csv'
+    a.click()
+    URL.revokeObjectURL(downloadUrl)
+  },
+
   // Dashboard
   dashboard: () => request('/dashboard'),
 

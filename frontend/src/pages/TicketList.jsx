@@ -47,12 +47,23 @@ export default function TicketList() {
           <h2 className="text-2xl font-bold text-slate-800">Tickets</h2>
           <p className="text-sm text-slate-500">{meta.total} total</p>
         </div>
-        {isRole('admin', 'agent', 'customer') && (
-          <Link to="/tickets/new"
-            className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
-            New Ticket
-          </Link>
-        )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => api.exportTicketsCsv(filters)}
+            className="border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Export CSV
+          </button>
+          {isRole('admin', 'agent', 'customer') && (
+            <Link to="/tickets/new"
+              className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+              New Ticket
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Filters */}

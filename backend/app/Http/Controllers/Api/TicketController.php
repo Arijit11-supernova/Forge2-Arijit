@@ -33,6 +33,45 @@ class TicketController extends Controller
         return response()->json($tickets);
     }
 
+    public function export(Request $request)
+    {
+        $this->authorize('create', Ticket::class);
+
+        $tickets = Ticket::query()
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when($request->filled('priority'), fn ($q) => $q->where('priority', $request->priority))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $q->where(function ($q) use ($request) {
+                    $q->where('subject', 'like', "%{$request->search}%")
+                        ->orWhere('description', 'like', "%{$request->search}%");
+                });
+            })
+            ->with(['requester:id,name', 'assignee:id,name'])
+            ->latest()
+            ->get();
+
+        $rows = collect([['id', 'subject', 'status', 'priority', 'requester', 'assignee', 'created_at']]);
+
+        $tickets->each(function ($t) use ($rows) {
+            $rows->push([
+                $t->id,
+                str_replace(',', ';', $t->subject),
+                $t->status,
+                $t->priority,
+                $t->requester?->name ?? '',
+                $t->assignee?->name ?? '',
+                $t->created_at->toDateTimeString(),
+            ]);
+        });
+
+        $csv = $rows->map(fn ($r) => implode(',', $r))->implode("\n");
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="tickets.csv"',
+        ]);
+    }
+
     public function store(Request $request)
     {
         $this->authorize('create', Ticket::class);

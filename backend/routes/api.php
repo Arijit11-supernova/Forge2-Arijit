@@ -24,6 +24,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
 
     // Tickets
+    Route::get('/tickets/export', [TicketController::class, 'export']);
     Route::apiResource('tickets', TicketController::class);
 
     // Comments (nested under tickets for create + index; standalone for update/delete)
