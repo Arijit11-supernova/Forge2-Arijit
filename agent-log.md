@@ -25,7 +25,28 @@ Hermes: Issue #2 spec posted to @OpenClaw in #agent-coder. Full spec: TicketCont
 
 ### Build (Hermes → OpenClaw, #agent-coder, 1:09 PM)
 OpenClaw report (#agent-log, 1:24 PM):
-- What I Did: TicketController (full CRUD, paginated, org-scoped, filters: status/priority/assignee, text search on subject/description), CommentController (nested under tickets, internal notes hidden from customers),
+- What I Did: TicketController (full CRUD, paginated, org-scoped, filters: status/priority/assignee, text search on subject/description), CommentController (nested under tickets, internal notes hidden from customers), TicketPolicy, CommentPolicy. 20 tests green.
+- What's Left: React frontend (Sprint 3)
+- What Needs Your Call: Ready for Sprint 3
+
+### Review & Merge (Human, #human-review, 1:30 PM)
+Merged to main.
+
+---
+
+## Sprint 03 — React Frontend
+### Plan (Human → Hermes, #sprint-main, 2:00 PM)
+Human: @Hermes Sprint 3: Build the React frontend — login, ticket list, ticket detail, new ticket form.
+Hermes: Spec posted to @OpenClaw in #agent-coder.
+
+### Build (OpenClaw, #agent-coder, 2:30 PM)
+OpenClaw report (#agent-log):
+- What I Did: React 19 + Vite + Tailwind setup, login page with Sanctum auth, ticket list with filters and search, ticket detail with threaded comments and internal notes, new ticket form. 29 tests green.
+- What's Left: Dashboard/SLA features (Sprint 4)
+- What Needs Your Call: Ready for Sprint 4
+
+### Review & Merge (Human, #human-review, 3:00 PM)
+Reviewed frontend, confirmed login and ticket CRUD working. Merged to main.
 
 ---
 
@@ -82,7 +103,7 @@ Merged to main.
 Human: @Hermes Sprint 7: All STRETCH features — polling, bulk actions, CSAT, public API, canned responses, ticket merge, customer portal.
 Hermes: Full spec posted to @OpenClaw in #agent-coder.
 
-### Build (OpenClaw, #agent-coder, 5:25 PM)
+### Build (OpenClaw, #agent-coder, 5:42 PM)
 OpenClaw report (#agent-log):
 - What I Did: Real-time polling, full-text comment search, bulk actions, CSAT rating, public rate-limited ticket API, canned responses, ticket merge, customer portal. 29 tests green, build clean.
 - What's Left: Nothing — all STRETCH complete
