@@ -1,40 +1,42 @@
-# PulseDesk -- Forge 2 / Edition 1  (rename this repo: forge2-<yourname>)
+# PulseDesk — Multi-tenant Support Desk SaaS
 
-A multi-tenant support-desk SaaS, BUILT BY ORCHESTRATING Hermes + OpenClaw over Slack.
-This is a STARTER SKELETON -- structure only, zero features. Build the features with your agents.
+Built for Forge 2 · Edition 1 hackathon using Hermes + OpenClaw agents over Slack.
 
-## Stack (required)
-Laravel 11 . PHP 8.2 . MySQL 8 . Laravel Sanctum . React 19 . Vite . Tailwind
+## Stack
+- Backend: Laravel 13 + MySQL 8 + Sanctum
+- Frontend: React 19 + Vite + Tailwind CSS
+- Agents: Hermes (orchestrator) + OpenClaw (coder) via EastRouter (z-ai/glm-5.1)
 
-## EastRouter models I used
-- Hermes (planning / product owner): <e.g. deepseek/deepseek-v4-pro>
-- OpenClaw (coding): <e.g. z-ai/glm-5.1>
+## Run Steps
 
-## How to run  (EXACT -- a judge will run these from a fresh clone)
-### Backend (Laravel + MySQL)
-    cd backend
-    cp .env.example .env          # set DB_* for your MySQL
-    composer install
-    php artisan key:generate
-    php artisan migrate --seed
-    php artisan serve             # http://127.0.0.1:8000
-### Frontend (React + Vite)
-    cd frontend
-    cp .env.example .env          # set VITE_API_URL=http://127.0.0.1:8000
-    npm install
-    npm run dev                   # http://127.0.0.1:5173
+### Backend
+```bash
+cd backend
+cp .env.example .env
+# Set DB_PASSWORD in .env to your MySQL root password
+php artisan key:generate
+php artisan migrate:fresh --seed
+php artisan serve
+```
 
-## Demo logins (from the seeder)  -- fill in after you build the seeder
-- admin@acme.test / password
-- agent@acme.test / password
-- customer@acme.test / password
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## Live URL
-<paste if deployed, else: "runs locally per the steps above">
+Open http://localhost:5173
 
-## Where my evidence lives (everything is in THIS repo -- no Drive, no video)
-- agents/        -- real Hermes + OpenClaw configs (secrets redacted)
-- agent-log.md   -- the human->Hermes->OpenClaw loop
-- sprints/       -- one doc per sprint
-- slack-export/  -- Slack export, or per-channel screenshots
-- evidence/screenshots/ -- app, agents-running, CI screenshots
+## Demo Logins
+- Admin: admin@acme.test / password
+- Agent: agent@acme.test / password  
+- Customer: customer@acme.test / password
+- Globex org: admin@globex.test / password
+
+## Models Used
+- Hermes: z-ai/glm-5.1 via EastRouter
+- OpenClaw: z-ai/glm-5.1 via EastRouter
+
+## Agent Workflow
+Hermes (orchestrator) planned sprints and assigned issues to OpenClaw (coder) via Slack. All communication via #sprint-main, #agent-coder, #agent-log, #ci-cd, #human-review channels.
